@@ -25,7 +25,7 @@ If SRV records are found, the port from the SRV is used instead.
 With SSH options passed on the command line:
 
 ```
-ssh -o ProxyUseFdPass=yes -o ProxyCommand='ssh-srv %h' user@myserver.mydomain.invalid
+ssh -o ProxyUseFdPass=yes -o ProxyCommand='ssh-srv %h %p' user@myserver.mydomain.invalid
 ```
 
 With ~/.ssh/config:
@@ -33,7 +33,7 @@ With ~/.ssh/config:
 ```
 Host *.mydomain.invalid
 		ProxyUseFdPass  yes
-		ProxyCommand    ssh-srv %h
+		ProxyCommand    ssh-srv %h %p
 ```
 
 Example SRV records:

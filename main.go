@@ -14,6 +14,29 @@ import (
 	"time"
 )
 
+const introText = `SUMMARY
+
+	Resolves an _ssh._tcp SRV record, and passes the socket to SSH via ProxyUseFdPass.
+
+USAGE
+
+		%[1]s HOSTNAME [PORT]
+
+	The socket is handed to fd 1 using ancilliary data.
+
+	Port is optional, and only used in the case of non-SRV fallback.
+	If SRV records are found, the port from the SRV is used instead.
+
+EXAMPLES
+
+	ssh -o ProxyUseFdPass=yes -o ProxyCommand='%[1]s %%h %%p' user@hostname
+
+	# ~/.ssh/ssh_config
+	Host *.mydomain.invalid
+		ProxyUseFdPass  yes
+		ProxyCommand    %[1]s %%h %%p
+`
+
 const (
 	connTimeout = 1 * time.Minute
 	connRace    = 300 * time.Millisecond
@@ -76,10 +99,11 @@ func Race[T any](ctx context.Context, next []func(context.Context) (T, error), i
 var ErrSRVLookup = errors.New("LookupSRV")
 
 func DialSRV(service, proto, name string, peek func(net.Conn) error) (net.Conn, error) {
-	_, addrs, err := net.LookupSRV(service, proto, name)
+	cname, addrs, err := net.LookupSRV(service, proto, name)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrSRVLookup, err)
 	}
+	log.Printf("%d SRV records found for %s", len(addrs), cname)
 
 	var d net.Dialer
 	var tryAddr []func(context.Context) (net.Conn, error)
@@ -149,28 +173,7 @@ func init() {
 
 func main() {
 	if len(os.Args) < 2 || os.Args[1][0] == '-' {
-		fmt.Fprintf(os.Stderr, `SUMMARY
-
-	Resolves an _ssh._tcp SRV record, and passes the socket to SSH via ProxyUseFdPass.
-
-USAGE
-
-		%[1]s HOSTNAME [PORT]
-
-	The socket is handed to fd 1 using ancilliary data.
-
-	Port is optional, and only used in the case of non-SRV fallback.
-	If SRV records are found, the port from the SRV is used instead.
-
-EXAMPLES
-
-	ssh -o ProxyUseFdPass=yes -o ProxyCommand='%[1]s %%h' user@hostname
-
-	# ~/.ssh/ssh_config
-	Host *.mydomain.invalid
-		ProxyUseFdPass  yes
-		ProxyCommand    %[1]s %%h
-`, os.Args[0])
+		fmt.Fprintf(os.Stderr, introText, os.Args[0])
 		os.Exit(1)
 	}
 
